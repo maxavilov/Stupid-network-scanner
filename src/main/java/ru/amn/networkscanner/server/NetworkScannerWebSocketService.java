@@ -111,7 +111,7 @@ public class NetworkScannerWebSocketService {
 						for (int i = 1; i < 255; i++) {
 							addressCollection.add(request + i);
 						}
-						// И запускаем её парралельную обработку
+						// И запускаем её параллельную обработку
 						addressCollection.parallelStream().forEach(address -> processAddress(address));
 						// Вся коллекция обработана, сообщаем об этом клиенту
 						synchronized (session) {
@@ -131,17 +131,17 @@ public class NetworkScannerWebSocketService {
 
 		// Обработка отдельных адресов
 		private void processAddress(String address) {
-			Long startTime = System.currentTimeMillis();
-			try {
-				byte[] iAddress = new byte[4];
-				String[] addrParts = address.split("\\.", 4);
-				for (int i = 0; i < addrParts.length; i++) {
-					try {
-						iAddress[i] = (byte) (Integer.parseInt(addrParts[i]) & 0xff);
-					} catch (NumberFormatException e) {
-
-					}
+			byte[] iAddress = new byte[4];
+			String[] addrParts = address.split("\\.", 4);
+			for (int i = 0; i < addrParts.length; i++) {
+				try {
+					iAddress[i] = (byte) (Integer.parseInt(addrParts[i]) & 0xff);
+				} catch (NumberFormatException e) {
+					return;
 				}
+			}
+			try {
+				Long startTime = System.currentTimeMillis();
 				if (!needTerminate && InetAddress.getByAddress(iAddress).isReachable(PING_TIMEOUT)) {
 					// Адрес ответил на ICMP ECHO пакет
 					Long endTime = System.currentTimeMillis();
