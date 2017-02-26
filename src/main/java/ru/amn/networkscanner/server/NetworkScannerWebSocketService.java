@@ -133,7 +133,16 @@ public class NetworkScannerWebSocketService {
 		private void processAddress(String address) {
 			Long startTime = System.currentTimeMillis();
 			try {
-				if (!needTerminate && InetAddress.getByName(address).isReachable(PING_TIMEOUT)) {
+				byte[] iAddress = new byte[4];
+				String[] addrParts = address.split("\\.", 4);
+				for (int i = 0; i < addrParts.length; i++) {
+					try {
+						iAddress[i] = (byte) (Integer.parseInt(addrParts[i]) & 0xff);
+					} catch (NumberFormatException e) {
+
+					}
+				}
+				if (!needTerminate && InetAddress.getByAddress(iAddress).isReachable(PING_TIMEOUT)) {
 					// Адрес ответил на ICMP ECHO пакет
 					Long endTime = System.currentTimeMillis();
 					JSONObject response = new JSONObject();

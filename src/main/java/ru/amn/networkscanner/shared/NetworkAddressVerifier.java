@@ -29,7 +29,7 @@ public class NetworkAddressVerifier {
 	public static boolean isValidAddrComponent(String component) {
 		try {
 			int parsedComponent = Integer.parseInt(component);
-			if (parsedComponent >= 1 && parsedComponent <= 254) {
+			if (parsedComponent >= 0 && parsedComponent <= 254) {
 				return true;
 			}
 		} catch (NumberFormatException e) {
