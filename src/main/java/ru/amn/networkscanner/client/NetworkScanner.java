@@ -38,6 +38,7 @@ import com.google.gwt.json.client.JSONObject;
 import com.google.gwt.json.client.JSONParser;
 import com.google.gwt.json.client.JSONString;
 import com.google.gwt.json.client.JSONValue;
+import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.FlexTable;
@@ -53,6 +54,7 @@ import ru.amn.networkscanner.shared.NetworkScannerConsts;
 
 public class NetworkScanner implements EntryPoint {
 
+	private static final int MAX_RETRY_COUNT = 100;
 	private boolean canScan = true;
 
 	private TextBox createAddressComponentTextBox() {
@@ -120,12 +122,14 @@ public class NetworkScanner implements EntryPoint {
 
 			@Override
 			public void onClose() {
-
+				netAddrErrorLabel.setText("Connection to scanner is closed!");
+				// Восстанавливаем доступность интерфейса
+				scanButton.setEnabled(true);
+				canScan = true;
 			}
 		});
 
-		// Websocket просто открывается. Ошибки и обрывы соединения здесь не
-		// обрабатываются
+		// Открываем соединение
 		socket.open();
 
 		class NetworkAddressHandler implements ValueChangeHandler<String>, ClickHandler, KeyUpHandler {
@@ -153,10 +157,48 @@ public class NetworkScanner implements EntryPoint {
 				}
 				String msg = netAddressFiled1.getValue() + "." + netAddressFiled2.getValue() + "."
 						+ netAddressFiled3.getValue() + ".";
-				// Посылаем в websocket данные (адрес сети, который будем
-				// сканировать)
-				// Здесь нет проверки на состояние веб сокета!
-				socket.send(msg);
+
+				// Поскольку соединение с веб скоетом может быть разорвано,
+				// перед отправкой данных серверу может потребоваться выполнить
+				// процедуру восстановления соединения.
+				// Так как нам прийдется ждать установления соединения, лучше всего
+				// это действие завернуть в таймер
+				Timer timer = new Timer() {
+					int retryCount = 0;
+
+					@Override
+					public void run() {
+						// Проверяем состояние веб сокета, если он не открыт - пытаемся открыть
+						if (socket.getState() != 1) {
+							// Нет соединения, пробуем его восстановить
+							retryCount++;
+							// Проверка на количество попыток восстановления соединения
+							if (retryCount > MAX_RETRY_COUNT) {
+								// Слишком долго ничего не получалось, хватит пока попыток
+								netAddrErrorLabel.setText("Can't connect to websocket!");
+								// Восстанавливаем доступ к интерфейсу
+								scanButton.setEnabled(true);
+								canScan = true;
+								cancel();
+								return;
+							}
+							// Если мы не в состоянии установления соединения, то пробуем установить его
+							if (socket.getState() != 0) {
+								socket.open();
+							}
+						} else {
+							// Веб сокет открыт
+							// Посылаем в web socket данные (адрес сети, который будем
+							// сканировать)
+							cancel(); // Снимаем таймер
+							socket.send(msg);
+						}
+
+					}
+
+				};
+				timer.scheduleRepeating(100);
+
 				scanStatusLabel.setText("Scaning network " + msg + "0/24...");
 				netAddressFiled3.setFocus(true);
 				netAddressFiled3.selectAll();
